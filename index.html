@@ -27,6 +27,10 @@
             opacity: 0.6;
             pointer-events: none;
         }
+        .preview-loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -68,9 +72,14 @@
                             <div id="selectedVoiceCategory" class="text-xs text-gray-500">AI Voice</div>
                         </div>
                     </div>
-                    <button id="changeVoiceBtn" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                        Ganti
-                    </button>
+                    <div class="flex space-x-2">
+                        <button id="previewSelectedBtn" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            ▶️
+                        </button>
+                        <button id="changeVoiceBtn" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            Ganti
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -141,6 +150,7 @@
             </button>
             
             <audio id="audioPlayer" controls class="w-full hidden"></audio>
+            <audio id="previewPlayer" class="hidden"></audio>
         </div>
 
         <!-- Status -->
@@ -208,30 +218,92 @@
             grid.innerHTML = '';
             
             availableVoices.forEach((voice, index) => {
-                const button = document.createElement('button');
-                button.className = 'voice-button bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500';
-                button.dataset.voiceId = voice.voice_id;
+                const container = document.createElement('div');
+                container.className = 'voice-button bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg p-3 transition-all duration-200';
+                container.dataset.voiceId = voice.voice_id;
                 
                 const gender = voice.labels?.gender || 'unknown';
                 const icon = gender === 'female' ? '👩' : gender === 'male' ? '👨' : '🎭';
                 
-                button.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <div class="text-lg">${icon}</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium text-xs text-gray-800 truncate">${voice.name}</div>
-                            <div class="text-xs text-gray-500 truncate">${voice.category || 'AI Voice'}</div>
+                container.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 flex-1 min-w-0 cursor-pointer select-voice-area">
+                            <div class="text-lg">${icon}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-xs text-gray-800 truncate">${voice.name}</div>
+                                <div class="text-xs text-gray-500 truncate">${voice.category || 'AI Voice'}</div>
+                            </div>
                         </div>
+                        <button class="preview-btn ml-2 text-blue-600 hover:text-blue-700 text-xs font-medium px-2 py-1 rounded border border-blue-200 hover:border-blue-300 transition-colors" data-voice-id="${voice.voice_id}" data-voice-name="${voice.name}">
+                            ▶️
+                        </button>
                     </div>
                 `;
                 
-                button.addEventListener('click', () => selectVoice(voice));
-                grid.appendChild(button);
+                // Add click event for voice selection
+                const selectArea = container.querySelector('.select-voice-area');
+                selectArea.addEventListener('click', () => selectVoice(voice));
+                
+                // Add click event for preview
+                const previewBtn = container.querySelector('.preview-btn');
+                previewBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    previewVoice(voice.voice_id, voice.name, previewBtn);
+                });
+                
+                grid.appendChild(container);
             });
 
             // Select first voice by default
             if (availableVoices.length > 0) {
                 selectVoice(availableVoices[0]);
+            }
+        }
+
+        // Preview voice function
+        async function previewVoice(voiceId, voiceName, buttonElement) {
+            const previewText = "Hello, this is a preview of my voice.";
+            
+            // Show loading state
+            const originalText = buttonElement.textContent;
+            buttonElement.textContent = '⏳';
+            buttonElement.classList.add('preview-loading');
+            
+            try {
+                const response = await fetch(`${WORKER_URL}/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: previewText,
+                        voice_id: voiceId,
+                        stability: 0.5,
+                        similarity_boost: 0.5
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+
+                // Play preview
+                const previewPlayer = document.getElementById('previewPlayer');
+                previewPlayer.src = audioUrl;
+                previewPlayer.play();
+
+                showStatus(`Preview: ${voiceName}`, 'info');
+
+            } catch (error) {
+                console.error('Error previewing voice:', error);
+                showStatus('Gagal preview suara', 'error');
+            } finally {
+                // Reset button state
+                buttonElement.textContent = originalText;
+                buttonElement.classList.remove('preview-loading');
             }
         }
 
@@ -266,6 +338,7 @@
             const clarityValue = document.getElementById('clarityValue');
             const generateBtn = document.getElementById('generateBtn');
             const changeVoiceBtn = document.getElementById('changeVoiceBtn');
+            const previewSelectedBtn = document.getElementById('previewSelectedBtn');
 
             // Stability control
             stabilityRange.addEventListener('input', (e) => {
@@ -282,6 +355,13 @@
 
             // Change voice button
             changeVoiceBtn.addEventListener('click', showVoiceGrid);
+
+            // Preview selected voice button
+            previewSelectedBtn.addEventListener('click', () => {
+                if (selectedVoice) {
+                    previewVoice(selectedVoice.voice_id, selectedVoice.name, previewSelectedBtn);
+                }
+            });
         }
 
         // Generate speech
@@ -377,5 +457,5 @@
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', init);
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'980547784250e10a',t:'MTc1ODA3NzI0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98055bdf229b5f2f',t:'MTc1ODA3ODA4NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
