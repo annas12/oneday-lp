@@ -1,44 +1,352 @@
-<div style="text-align:center; padding:80px 20px; font-family:sans-serif;">
-  <div style="margin:auto; width:60px; height:60px; border:6px solid #ccc; border-top:6px solid #00aaff; border-radius:50%; animation:spin 1s linear infinite;"></div>
-  
-  <h2 style="margin-top:30px; font-weight:normal;">Checking your connection...</h2>
-  <p style="color:#555;">You will be redirected in <span id="countdown">5</span> seconds</p>
-</div>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Speech Indonesia - ElevenLabs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .voice-card {
+            transition: all 0.3s ease;
+        }
+        .voice-card:hover {
+            transform: translateY(-2px);
+        }
+        .voice-card.selected {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">🎤 Text to Speech</h1>
+            <p class="text-gray-600 text-sm">Powered by ElevenLabs AI</p>
+        </div>
 
-<style>
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-</style>
+        <!-- Configuration Notice -->
+        <div id="configNotice" class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <p class="text-xs text-green-800">
+                <strong>✅ Connected:</strong> Terhubung dengan Cloudflare Worker Anda
+            </p>
+        </div>
 
-<script type='text/javascript'>
-(function() {
-  var links = [
-    "https://www.wedusing.my.id/2025/08/afrique-francophone-travail-emploi.html", 
-    "https://www.wedusing.my.id/2025/08/exetat-2025-la-revolution-techno-des.html",
-    "https://www.wedusing.my.id/2025/08/red-bull-tandem-coaster-makes-us-debut.html", 
-    "https://www.wedusing.my.id/2025/08/un-tesla-cybertruck-laisse-branche-part.html", 
-    "https://www.wedusing.my.id/2025/08/gabriel-arias-drives-in-4-as-guardians.html", 
-    "https://www.wedusing.my.id/2025/08/cbs-sports-nebraskas-first-2025-loss.html", 
-    "https://www.wedusing.my.id/2025/07/top-10-meme-coins-boil-over-only-one.html", 
-    "https://www.wedusing.my.id/2025/07/trump-champions-groundbreaking-genius.html", 
-    "https://www.wedusing.my.id/2025/07/galaxy-z-fold-7-review-after-six-years.html", 
-    "https://www.wedusing.my.id/2025/07/blockdags-no-vesting-pass-spikes-342m.html", 
-    "https://www.wedusing.my.id/2025/06/why-these-7-tokens-will-top-every-best.html"
-  ];
+        <!-- Text Input -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Masukkan Teks</label>
+            <textarea 
+                id="textInput" 
+                placeholder="Ketik teks yang ingin diubah menjadi suara..."
+                class="w-full h-24 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >Halo, ini adalah demo text to speech menggunakan ElevenLabs AI. Suara ini sangat natural dan realistis.</textarea>
+        </div>
 
-  var index = Math.floor(Math.random() * links.length);
-  var seconds = 6; // waktu countdown dalam detik
-  var countdownEl = document.getElementById("countdown");
+        <!-- Voice Selection -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Pilih Suara</label>
+            <div id="voiceGrid" class="grid grid-cols-1 gap-3">
+                <div class="text-center text-gray-500 py-4">
+                    <div class="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <p class="text-sm">Memuat suara...</p>
+                </div>
+            </div>
+        </div>
 
-  var timer = setInterval(function() {
-    seconds--;
-    countdownEl.textContent = seconds;
-    if (seconds <= 0) {
-      clearInterval(timer);
-      window.location.href = links[index];
-    }
-  }, 1000);
-})();
-</script>
+        <!-- Voice Settings -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Pengaturan Suara</label>
+            
+            <!-- Stability -->
+            <div class="mb-3">
+                <label class="block text-xs text-gray-600 mb-1">Stabilitas</label>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-gray-500">Variasi</span>
+                    <input 
+                        type="range" 
+                        id="stabilityRange" 
+                        min="0" 
+                        max="1" 
+                        step="0.1" 
+                        value="0.5"
+                        class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    >
+                    <span class="text-xs text-gray-500">Stabil</span>
+                </div>
+                <div class="text-center mt-1">
+                    <span id="stabilityValue" class="text-xs text-blue-600 font-medium">0.5</span>
+                </div>
+            </div>
+
+            <!-- Similarity Boost -->
+            <div>
+                <label class="block text-xs text-gray-600 mb-1">Kejelasan</label>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-gray-500">Low</span>
+                    <input 
+                        type="range" 
+                        id="clarityRange" 
+                        min="0" 
+                        max="1" 
+                        step="0.1" 
+                        value="0.5"
+                        class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    >
+                    <span class="text-xs text-gray-500">High</span>
+                </div>
+                <div class="text-center mt-1">
+                    <span id="clarityValue" class="text-xs text-blue-600 font-medium">0.5</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="space-y-3 mb-4">
+            <button 
+                id="generateBtn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+            >
+                <span id="generateIcon">🎵</span>
+                <span id="generateText">Generate & Download MP3</span>
+            </button>
+            
+            <audio id="audioPlayer" controls class="w-full hidden"></audio>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="text-center text-sm text-gray-500 hidden"></div>
+
+        <!-- Usage Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+            <p class="text-xs text-blue-800">
+                <strong>ElevenLabs:</strong> 10,000 karakter gratis per bulan. Suara AI berkualitas tinggi dan natural.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ✅ TERHUBUNG DENGAN CLOUDFLARE WORKER ANDA
+        const WORKER_URL = 'https://tts-indonesia-api.annasmashuri97.workers.dev';
+        
+        let selectedVoice = null;
+        let availableVoices = [];
+
+        // Initialize the app
+        async function init() {
+            setupEventListeners();
+            await loadVoices();
+            checkConfiguration();
+        }
+
+        // Check if worker URL is configured
+        function checkConfiguration() {
+            // Worker URL sudah dikonfigurasi dengan benar
+            document.getElementById('configNotice').style.display = 'block';
+        }
+
+        // Load voices from ElevenLabs
+        async function loadVoices() {
+            try {
+                const response = await fetch(`${WORKER_URL}/voices`);
+                const data = await response.json();
+                
+                if (data.voices) {
+                    availableVoices = data.voices;
+                    populateVoiceGrid();
+                } else {
+                    throw new Error('No voices received');
+                }
+            } catch (error) {
+                console.error('Error loading voices:', error);
+                showStatus('Gagal memuat suara. Periksa konfigurasi Worker.', 'error');
+                showFallbackVoices();
+            }
+        }
+
+        // Show fallback voices if API fails
+        function showFallbackVoices() {
+            const fallbackVoices = [
+                { voice_id: 'demo', name: 'Demo Voice', category: 'generated' }
+            ];
+            availableVoices = fallbackVoices;
+            populateVoiceGrid();
+        }
+
+        // Create voice selection grid
+        function populateVoiceGrid() {
+            const grid = document.getElementById('voiceGrid');
+            grid.innerHTML = '';
+            
+            availableVoices.slice(0, 6).forEach((voice, index) => {
+                const card = document.createElement('div');
+                card.className = 'voice-card border-2 border-gray-200 rounded-lg p-3 cursor-pointer';
+                card.dataset.voiceId = voice.voice_id;
+                
+                const gender = voice.labels?.gender || 'unknown';
+                const icon = gender === 'female' ? '👩' : gender === 'male' ? '👨' : '🎭';
+                
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="text-2xl">${icon}</div>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm text-gray-800">${voice.name}</div>
+                            <div class="text-xs text-gray-500">${voice.category || 'AI Voice'}</div>
+                        </div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => selectVoice(voice));
+                grid.appendChild(card);
+            });
+
+            // Select first voice by default
+            if (availableVoices.length > 0) {
+                selectVoice(availableVoices[0]);
+            }
+        }
+
+        // Select a voice
+        function selectVoice(voice) {
+            // Remove previous selection
+            document.querySelectorAll('.voice-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Add selection to clicked card
+            const selectedCard = document.querySelector(`[data-voice-id="${voice.voice_id}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+            
+            selectedVoice = voice;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const stabilityRange = document.getElementById('stabilityRange');
+            const stabilityValue = document.getElementById('stabilityValue');
+            const clarityRange = document.getElementById('clarityRange');
+            const clarityValue = document.getElementById('clarityValue');
+            const generateBtn = document.getElementById('generateBtn');
+
+            // Stability control
+            stabilityRange.addEventListener('input', (e) => {
+                stabilityValue.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+
+            // Clarity control
+            clarityRange.addEventListener('input', (e) => {
+                clarityValue.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+
+            // Generate button
+            generateBtn.addEventListener('click', generateSpeech);
+        }
+
+        // Generate speech
+        async function generateSpeech() {
+            const textInput = document.getElementById('textInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const generateIcon = document.getElementById('generateIcon');
+            const generateText = document.getElementById('generateText');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            const text = textInput.value.trim();
+            if (!text) {
+                showStatus('Silakan masukkan teks terlebih dahulu', 'error');
+                return;
+            }
+
+            if (!selectedVoice) {
+                showStatus('Silakan pilih suara terlebih dahulu', 'error');
+                return;
+            }
+
+            // Show loading state
+            generateBtn.classList.add('loading');
+            generateIcon.textContent = '⏳';
+            generateText.textContent = 'Generating...';
+            showStatus('Sedang membuat audio...', 'info');
+
+            try {
+                const stability = parseFloat(document.getElementById('stabilityRange').value);
+                const similarity_boost = parseFloat(document.getElementById('clarityRange').value);
+
+                const response = await fetch(`${WORKER_URL}/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice_id: selectedVoice.voice_id,
+                        stability: stability,
+                        similarity_boost: similarity_boost
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+
+                // Show audio player
+                audioPlayer.src = audioUrl;
+                audioPlayer.classList.remove('hidden');
+                audioPlayer.play();
+
+                // Create download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = audioUrl;
+                downloadLink.download = `speech-${Date.now()}.mp3`;
+                downloadLink.click();
+
+                showStatus('Audio berhasil dibuat dan didownload!', 'success');
+
+            } catch (error) {
+                console.error('Error generating speech:', error);
+                showStatus('Gagal membuat audio. Periksa koneksi dan konfigurasi.', 'error');
+            } finally {
+                // Reset button state
+                generateBtn.classList.remove('loading');
+                generateIcon.textContent = '🎵';
+                generateText.textContent = 'Generate & Download MP3';
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `text-center text-sm ${
+                type === 'error' ? 'text-red-600' : 
+                type === 'success' ? 'text-green-600' : 
+                type === 'warning' ? 'text-yellow-600' : 
+                'text-blue-600'
+            }`;
+            status.textContent = message;
+            status.classList.remove('hidden');
+            
+            setTimeout(() => {
+                status.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98053f1a62bc5f51',t:'MTc1ODA3NjkwNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
